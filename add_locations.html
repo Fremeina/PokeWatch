@@ -4,10 +4,12 @@
 		<meta name="viewport" content="initial-scale=1.0, user-scalable=no">
 		<meta charset="utf-8">
 		<title>PokeWatch Locations</title>
-		<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false&key=YOUR_KEY_HERE"></script>
-		<script type="text/javascript" src="http://code.jquery.com/jquery-1.4.2.min.js"></script>
-		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.7/css/materialize.min.css">
+		<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false&key=AIzaSyDH834DQFJeDEIH-UkjiMR0UkXyEps-nvQ"></script>
+		<script type="text/javascript" src="http://code.jquery.com/jquery-3.1.0.min.js"></script>
+		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.7/js/materialize.min.js"></script>
 		<script type="text/javascript">
 		var map;
 		var locations=[];
@@ -72,9 +74,15 @@
 			$("#LocationsJSON").fadeOut(500);
 		}
 		function addNewMarker(Lat,Lng) {
-			var marker = new google.maps.Marker({
-				position: {"lat":Lat,"lng":Lng},
-				map: map
+			var circle = new google.maps.Circle({
+				strokeColor: '#27ae60',
+				strokeOpacity: 0.8,
+				strokeWeight: 2,
+				fillColor: '#2ecc71',
+				fillOpacity: 0.35,
+				map: map,
+				center: {"lat":Lat,"lng":Lng},
+				radius: 70
 			});
 			locations.push({
 				"Latitude": Lat,
@@ -114,6 +122,7 @@
 				initialize(40.782410,-73.965849);
 				swal({title: "Warning!",text: "Could not determine your location,<br/>Please set your location on <strong>Line 114</strong> of this file<br/><pre>initialize(40.782410,-73.965849);</pre><br/>And then delete <strong>Line 115</strong>",type:"warning",html: true});
 			});
+			$('.collapsible').collapsible();
 		});
 		</script>
 		<style type="text/css">
@@ -121,6 +130,15 @@
 			overflow:hidden;
 			padding:0px;
 			margin:0px;
+		}
+		
+		#menu {
+			position: fixed;
+			right: 10px;
+			top: 10px;
+			z-index: 5;
+			height: auto;
+			width: 250px;
 		}
 		#map_canvas{
 			width: 100vw; 
@@ -137,7 +155,7 @@
 		.cmenu * {
 			transition: color .15s, background .4s;
 		}
-		.item {
+		.cmenu .item {
 			position: relative;
 			height: 48px;
 			line-height: 48px;
@@ -145,21 +163,21 @@
 			font-family: Roboto, Arial, sans-serif;
 			cursor: pointer;
 		}
-		.item:hover:not(.disabled) {
+		.cmenu .item:hover:not(.disabled) {
 			background-color:#ddd;
 		}
-		.item:last-child {
+		.cmenu .item:last-child {
 			margin-bottom: 5px;
 		}
-		.item.disabled,
-		.item.disabled .label {
+		.cmenu .item.disabled,
+		.cmenu .item.disabled .label {
 			color: #e5e5e5;
 			cursor: default;
 		}
-		.item .label {
+		.cmenu .item .label {
 			padding-left: 12px;
 		}
-		.item ul.options {
+		.cmenu .item ul.options {
 			list-style: none;
 			margin: 0;
 			padding: 0;
@@ -170,12 +188,12 @@
 			top: -24px;
 			box-shadow: 1px 2px 3px #aaa;
 		}
-		.item ul.options li {
+		.cmenu .item ul.options li {
 			height: 40px;
 			text-indent: 5px;
 			position: relative;
 		}
-		.item ul.options li:last-child {
+		.cmenu .item ul.options li:last-child {
 			border-top: 1px solid rgba(77, 144, 254, 0.2);
 		}
 		#LocationsJSON{
@@ -199,6 +217,22 @@
 		</style>
 	</head>
 	<body>
+		<div class="container" id="menu">
+			<ul class="collapsible popout" data-collapsible="accordion">
+				<li>
+					<div class="collapsible-header"><i class="material-icons">filter_drama</i>First</div>
+					<div class="collapsible-body"><p>Lorem ipsum dolor sit amet.</p></div>
+				</li>
+				<li>
+					<div class="collapsible-header"><i class="material-icons">place</i>Second</div>
+					<div class="collapsible-body"><p>Lorem ipsum dolor sit amet.</p></div>
+				</li>
+				<li>
+					<div class="collapsible-header"><i class="material-icons">whatshot</i>Third</div>
+					<div class="collapsible-body"><p>Lorem ipsum dolor sit amet.</p></div>
+				</li>
+			</ul>
+		</div>
 		<div class="formDiv" id="map_canvas"></div>
 		<textarea id="LocationsJSON" ></textarea>
 		<textarea id="LocationsJSON_hidden" ></textarea>

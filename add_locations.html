@@ -82,24 +82,6 @@
 			$('.cmenu').fadeOut(50);
 			$("#LocationsJSON").fadeOut(500);
 		}
-		function addNewMarker(Lat,Lng) {
-			var circle = new google.maps.Circle({
-				strokeColor: '#27ae60',
-				strokeOpacity: 0.8,
-				strokeWeight: 2,
-				fillColor: '#2ecc71',
-				fillOpacity: 0.35,
-				map: map,
-				center: {"lat":Lat,"lng":Lng},
-				radius: 70,
-				draggable:true
-			});
-			locations.push({
-				"Latitude": Lat,
-				"Longitude": Lng
-			});
-			hideContextMenu();
-		}
 		function copyMarkerLocations(){
 			$("#LocationsJSON,#LocationsJSON_hidden").text(JSON.stringify(locations, null, "\t"))
 			try{
@@ -148,6 +130,24 @@
 				$scope.areas.splice(this.$index, 1);
 			}
 			
+			//Add Single Marker
+			$scope.addNewMarker = function(Lat,Lng,area) {
+				var circle = new google.maps.Circle({
+					strokeColor: '#27ae60',
+					strokeOpacity: 0.8,
+					strokeWeight: 2,
+					fillColor: '#2ecc71',
+					fillOpacity: 0.35,
+					map: map,
+					center: {"lat":Lat,"lng":Lng},
+					radius: 70,
+					draggable:true
+				});
+				google.maps.event.addListener(circle, "rightclick",function(event){showMapMenu(event.latLng,'.markermenu');});
+				$scope.areas[area].locations.push(circle);
+			}
+			
+			//Transform Rectangle to Markers
 			$scope.makeCircle = function(){
 				var bounds = rectangle.getBounds();
 				var i=0;
@@ -157,27 +157,15 @@
 						nextEE += (180/Math.PI)*(70/6378137)
 					}
 					for (nextE = nextEE; (nextE - (180/Math.PI)*(70/6378137)) < bounds.b.f; nextE += (180/Math.PI)*(140/6378137)){
-						var circle = new google.maps.Circle({
-							strokeColor: '#27ae60',
-							strokeOpacity: 0.8,
-							strokeWeight: 2,
-							fillColor: '#2ecc71',
-							fillOpacity: 0.35,
-							map: map,
-							center: {"lat":nextS,"lng":nextE},
-							radius: 70,
-							draggable:true,
-							clickable:true
-						});
-						google.maps.event.addListener(circle, "rightclick",function(event){showMapMenu(event.latLng,'.markermenu');});
-						$scope.areas[this.$index].locations.push(circle);
+						$scope.addNewMarker(nextS,nextE,this.$index);
 					}
 				}
 				rectangle.setMap(null);
 			}
 			
+			//Create a Rectangle to mass mark area
 			var rectangle;
-			$scope.makeSquare = function(){
+			$scope.makeRectangle = function(){
 				rectangle = new google.maps.Rectangle({
 					strokeColor: '#FF0000',
 					strokeOpacity: 0.8,
@@ -400,7 +388,7 @@
 					</div>
 				</li>
 				<li>
-					<div class="collapsible-header"><i class="material-icons">place</i>Areas | {{ ((area[0].locations*5).toString().toHHMMSS()) }}</div>
+					<div class="collapsible-header"><i class="material-icons">place</i>Areas | {{ ((areas[0].locations*5).toString().toHHMMSS()) }}</div>
 					<div class="collapsible-body">
 						<ul class="collapsible" data-collapsible="accordion">
 							<li ng-repeat="area in areas">
@@ -438,7 +426,7 @@
 			<div class="item addArea" ng-repeat="area in areas" onclick="hideContextMenu();addNewMarker(40.782410,-73.965849);">
 				<div class="label">+ {{area.name}} marker</div>
 			</div>
-			<div class="item" onclick="hideContextMenu();" data-ng-click="makeSquare();">
+			<div class="item" onclick="hideContextMenu();" data-ng-click="makeRectangle();">
 				<div class="label">Mass Marker Area</div>
 			</div>
 		</div>

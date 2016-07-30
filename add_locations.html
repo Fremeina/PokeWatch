@@ -137,6 +137,52 @@
 				$scope.areas.splice(this.$index, 1);
 			}
 		});
+		var rectangle;
+		function makeSquare(){
+			rectangle = new google.maps.Rectangle({
+				strokeColor: '#FF0000',
+				strokeOpacity: 0.8,
+				strokeWeight: 2,
+				fillColor: '#FF0000',
+				fillOpacity: 0.35,
+				map: map,
+				editable:true,
+				draggable:true,
+				bounds: {
+					north: -36.78546986889685,	//f.b
+					south: -36.78839127856238,	//f.f
+					east: 174.76308345794678,	//b.f
+					west: 174.75763320922852	//b.b
+				}
+			});
+		}
+		function makeCircle(obj){
+			var bounds = rectangle.getBounds();
+			var i=0;
+			for (nextS = bounds.f.b; (nextS + (180/Math.PI)*(110/6378137)) > bounds.f.f; nextS -= (180/Math.PI)*(110/6378137)){
+				nextEE = bounds.b.b;
+				if (++i % 2 == 0){
+					nextEE += (180/Math.PI)*(70/6378137)
+				}
+				for (nextE = nextEE; (nextE - (180/Math.PI)*(70/6378137)) < bounds.b.f; nextE += (180/Math.PI)*(140/6378137)){
+					var circle = new google.maps.Circle({
+						strokeColor: '#27ae60',
+						strokeOpacity: 0.8,
+						strokeWeight: 2,
+						fillColor: '#2ecc71',
+						fillOpacity: 0.35,
+						map: map,
+						center: {"lat":nextS,"lng":nextE},
+						radius: 70,
+						draggable:true,
+						clickable:true
+					});
+					google.maps.event.addListener(circle, "rightclick",function(event){showMapMenu(event.latLng);});
+					obj.push(circle);
+				}
+			}
+			rectangle.setMap(null);
+		}
 		</script>
 		<style type="text/css">
 		body{

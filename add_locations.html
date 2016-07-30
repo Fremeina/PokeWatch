@@ -1,15 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html ng-app="PokeWatchApp">
 	<head>
 		<meta name="viewport" content="initial-scale=1.0, user-scalable=no">
 		<meta charset="utf-8">
 		<title>PokeWatch Locations</title>
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.7/css/materialize.min.css">
-		<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false&key=AIzaSyDH834DQFJeDEIH-UkjiMR0UkXyEps-nvQ"></script>
-		<script type="text/javascript" src="http://code.jquery.com/jquery-3.1.0.min.js"></script>
-		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.7/js/materialize.min.js"></script>
+		<link href="//fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
+		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/materialize/0.97.7/css/materialize.min.css">
+		<script type="text/javascript" src="//maps.google.com/maps/api/js?sensor=false&key=AIzaSyDH834DQFJeDEIH-UkjiMR0UkXyEps-nvQ"></script>
+		<script type="text/javascript" src="//code.jquery.com/jquery-3.1.0.min.js"></script>
+		<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular.min.js"></script>
+		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
+		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/materialize/0.97.7/js/materialize.min.js"></script>
 		<script type="text/javascript">
 		var map;
 		var locations=[];
@@ -21,7 +23,7 @@
 			  mapTypeId: google.maps.MapTypeId.ROADMAP
 			};
 			map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
-			google.maps.event.addListener(map,"rightclick",function(event){showContextMenu(event.latLng);});
+			google.maps.event.addListener(map,"rightclick",function(event){showMapMenu(event.latLng);});
 			google.maps.event.addListener(map,"click",function(event){hideContextMenu();});
 		}
 		function getCanvasXY(currentLatLng){
@@ -55,22 +57,17 @@
 			$('.cmenu').css('left',x);
 			$('.cmenu').css('top',y);
 		};
-		function showContextMenu(currentLatLng) {
+		function showMapMenu(currentLatLng) {
 			var projection;
 			var contextmenuDir;
 			projection = map.getProjection() ;
-			$('.cmenu').remove();
-			contextmenuDir = document.createElement("div");
-			contextmenuDir.className  = 'cmenu';
-			contextmenuDir.innerHTML = '<div class="item" title="Add another location to check" onclick="addNewMarker' + currentLatLng + ';"><div class="label">Add Marker</div></div><div class="item ' + (locations.length > 0 ? '' : 'disabled') + '" title="Copy locations list to clipboard" ' + (locations.length > 0 ? 'onclick="copyMarkerLocations()"' : '') + '><div class="label">Copy Marker Locations</div></div>';
-			$(map.getDiv()).append(contextmenuDir);
-			
-			setMenuXY(currentLatLng);
-
-			contextmenuDir.style.visibility = "visible";
+			$('.mapmenu').fadeOut(50,function(){
+				setMenuXY(currentLatLng);
+				$('.mapmenu').fadeIn(50).find('.addArea').attr('onclick','addNewMarker' + currentLatLng + ';');
+			});
 		}
 		function hideContextMenu() {
-			$('.cmenu').remove();
+			$('.cmenu').fadeOut(200);
 			$("#LocationsJSON").fadeOut(500);
 		}
 		function addNewMarker(Lat,Lng) {
@@ -82,7 +79,8 @@
 				fillOpacity: 0.35,
 				map: map,
 				center: {"lat":Lat,"lng":Lng},
-				radius: 70
+				radius: 70,
+				draggable:true
 			});
 			locations.push({
 				"Latitude": Lat,
@@ -122,7 +120,22 @@
 				initialize(40.782410,-73.965849);
 				swal({title: "Warning!",text: "Could not determine your location,<br/>Please set your location on <strong>Line 114</strong> of this file<br/><pre>initialize(40.782410,-73.965849);</pre><br/>And then delete <strong>Line 115</strong>",type:"warning",html: true});
 			});
-			$('.collapsible').collapsible();
+		});
+		
+		var PokeWatchApp = angular.module('PokeWatchApp', []);
+		PokeWatchApp.controller('PokeWatchController', function PokeWatchController($scope) {
+			$scope.areas = JSON.parse(localStorage.getItem("areas")) || [{name:"Springfield",prefix:"around",suffix:"north"}];
+			
+			$scope.AddArea = function () {
+				$scope.areas.push({
+					name: "New Location",
+					prefix: "",
+					suffix: ""
+				});
+			};
+			$scope.RemoveArea = function(el) {
+				$scope.areas.splice(this.$index, 1);
+			}
 		});
 		</script>
 		<style type="text/css">
@@ -138,7 +151,7 @@
 			top: 10px;
 			z-index: 5;
 			height: auto;
-			width: 250px;
+			width: 300px;
 		}
 		#map_canvas{
 			width: 100vw; 
@@ -146,8 +159,8 @@
 		}
 		.cmenu {
 			position: absolute;
-			display: inline-block;
-			width: 190px;
+			display: none;
+			min-width: 190px;
 			background-color: #fff;
 			box-shadow: 1px 2px 3px #aaa;
 			z-index:50;
@@ -214,26 +227,161 @@
 			height:0px;
 			z-index:-50px;
 		}
+		.collapsible-header {
+			padding-right:0px;
+		}
+		.collapsible-body {
+			background-color:#fcfcfc;
+			padding:10px;
+		}
+		.input-field label {
+			color: #2c3e50;
+		}
+		.input-field input[type=text]:focus + label,
+		.input-field input[type=password]:focus + label {
+			color: #2c3e50;
+		}
+		.input-field input[type=text]:focus,
+		.input-field input[type=password]:focus {
+			border-bottom: 1px solid #2c3e50;
+			box-shadow: 0 1px 0 0 #2c3e50;
+		}
+		.input-field .prefix.active {
+			color: #2c3e50;
+		}
+		.input-field input[type=text],
+		.input-field input[type=password] {
+			padding-left:10px;
+		}
+		.btn {
+			margin:0px;
+			width:100%;
+		}
+		::-webkit-scrollbar {
+			width: 3px;
+			height: 3px;
+		}
+		::-webkit-scrollbar-button {
+			width: 0px;
+			height: 0px;
+		}
+		::-webkit-scrollbar-thumb {
+			background: #e1e1e1;
+			border: 0px none #ffffff;
+			border-radius: 50px;
+		}
+		::-webkit-scrollbar-thumb:hover {
+			background: #ffffff;
+		}
+		::-webkit-scrollbar-thumb:active {
+			background: #000000;
+		}
+		::-webkit-scrollbar-track {
+			background: #666666;
+			border: 0px none #ffffff;
+			border-radius: 50px;
+		}
+		::-webkit-scrollbar-track:hover {
+			background: #666666;
+		}
+		::-webkit-scrollbar-track:active {
+			background: #333333;
+		}
+		::-webkit-scrollbar-corner {
+			background: transparent;
+		}
 		</style>
 	</head>
-	<body>
-		<div class="container" id="menu">
+	<body ng-controller="PokeWatchController">
+		<input type="text" style="display:none">
+		<input type="password" style="display:none">
+		<div class="container" id="menu" style="max-height:100vh;overflow-y:auto;autoflow-x:hidden;">
 			<ul class="collapsible popout" data-collapsible="accordion">
 				<li>
-					<div class="collapsible-header"><i class="material-icons">filter_drama</i>First</div>
-					<div class="collapsible-body"><p>Lorem ipsum dolor sit amet.</p></div>
+					<div class="collapsible-header"><i class="material-icons">supervisor_account</i>Pokemon GO Account</div>
+					<div class="collapsible-body">
+						<div class="input-field col s12">
+							<input autocomplete="off" placeholder="(optional)" id="ptc_username" type="text">
+							<label for="ptc_username">PTC Username</label>
+						</div>
+						<div class="input-field col s12">
+							<input autocomplete="off" placeholder="********" id="ptc_password" type="password">
+							<label for="ptc_password">PTC Password</label>
+						</div>
+						<div class="input-field col s12">
+							<input autocomplete="off" placeholder="(optional)" id="google_username" type="text">
+							<label for="google_username">Google Account Username</label>
+						</div>
+						<div class="input-field col s12">
+							<input autocomplete="off" placeholder="********" id="ptc_username" type="password">
+							<label for="google_password">Google Account Password</label>
+						</div>
+					</div>
 				</li>
 				<li>
-					<div class="collapsible-header"><i class="material-icons">place</i>Second</div>
-					<div class="collapsible-body"><p>Lorem ipsum dolor sit amet.</p></div>
+					<div class="collapsible-header"><i class="material-icons">settings</i>Twitter Account</div>
+					<div class="collapsible-body">
+						<div class="input-field col s12">
+							<input autocomplete="off" placeholder="required" id="google_username" type="text">
+							<label for="google_username">Twitter Consumer Token</label>
+						</div>
+						<div class="input-field col s12">
+							<input autocomplete="off" placeholder="required" id="google_username" type="text">
+							<label for="google_username">Twitter Consumer Secret</label>
+						</div>
+						<div class="input-field col s12">
+							<input autocomplete="off" placeholder="required" id="google_username" type="text">
+							<label for="google_username">Twitter Access Token</label>
+						</div>
+						<div class="input-field col s12">
+							<input autocomplete="off" placeholder="required" id="google_username" type="text">
+							<label for="google_username">Twitter Access  Secret</label>
+						</div>
+					</div>
 				</li>
 				<li>
-					<div class="collapsible-header"><i class="material-icons">whatshot</i>Third</div>
-					<div class="collapsible-body"><p>Lorem ipsum dolor sit amet.</p></div>
+					<div class="collapsible-header"><i class="material-icons">place</i>Areas</div>
+					<div class="collapsible-body">
+						<ul class="collapsible" data-collapsible="accordion">
+							<li ng-repeat="area in areas">
+								<div class="collapsible-header"><i class="material-icons">grade</i>{{area.prefix}} {{area.name}} {{area.suffix}}</div>
+								<div class="collapsible-body">
+									<div class="input-field col s12">
+										<input autocomplete="off" placeholder=" - " id="google_username" type="text" value="{{area.prefix}}">
+										<label for="google_username">Prefix</label>
+									</div>
+									<div class="input-field col s12">
+										<input autocomplete="off" placeholder=" - " id="google_username" type="text" value="{{area.name}}">
+										<label for="google_username">Name</label>
+									</div>
+									<div class="input-field col s12">
+										<input autocomplete="off" placeholder=" - " id="google_username" type="text" value="{{area.suffix}}">
+										<label for="google_username">Suffix</label>
+									</div>
+									<a class="waves-effect waves-light btn red" data-ng-click="RemoveArea()">Remove</a>
+								</div>
+							</li>
+						</ul>
+						<a class="waves-effect waves-light btn" data-ng-click="AddArea()">Add Area</a>
+					</div>
+				</li>
+				<li>
+					<div class="collapsible-header"><i class="material-icons">chat</i>Tweets</div>
+					<div class="collapsible-body">
+					</div>
 				</li>
 			</ul>
+			<a class="waves-effect waves-light btn green">Download Config</a>
 		</div>
 		<div class="formDiv" id="map_canvas"></div>
+		<div class="mapmenu cmenu">
+			<div class="item addArea" ng-repeat="area in areas" onclick="addNewMarker(40.782410,-73.965849);">
+				<div class="label">+ {{area.name}} marker</div>
+			</div>
+			<div class="item" onclick="copyMarkerLocations()">
+				<div class="label">Copy Marker Locations</div>
+			</div>
+		</div>
 		<textarea id="LocationsJSON" ></textarea>
 		<textarea id="LocationsJSON_hidden" ></textarea>
 	</body>

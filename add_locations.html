@@ -15,6 +15,17 @@
 		<script type="text/javascript">
 		var map;
 		var locations=[];
+		String.prototype.toHHMMSS = function () {
+			var sec_num = parseInt(this, 10); // don't forget the second param
+			var hours   = Math.floor(sec_num / 3600);
+			var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
+			var seconds = sec_num - (hours * 3600) - (minutes * 60);
+
+			if (hours   < 10) {hours   = "0"+hours;}
+			if (minutes < 10) {minutes = "0"+minutes;}
+			if (seconds < 10) {seconds = "0"+seconds;}
+			return hours+':'+minutes+':'+seconds;
+		}
 		function initialize(Lat,Lng) {
 			var latlng = new google.maps.LatLng(Lat,Lng);
 			var myOptions = {
@@ -23,7 +34,7 @@
 			  mapTypeId: google.maps.MapTypeId.ROADMAP
 			};
 			map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
-			google.maps.event.addListener(map,"rightclick",function(event){showMapMenu(event.latLng);});
+			google.maps.event.addListener(map,"rightclick",function(event){showMapMenu(event.latLng,'.mapmenu');});
 			google.maps.event.addListener(map,"click",function(event){hideContextMenu();});
 		}
 		function getCanvasXY(currentLatLng){
@@ -57,17 +68,18 @@
 			$('.cmenu').css('left',x);
 			$('.cmenu').css('top',y);
 		};
-		function showMapMenu(currentLatLng) {
+		function showMapMenu(currentLatLng,menu) {
 			var projection;
 			var contextmenuDir;
 			projection = map.getProjection() ;
-			$('.mapmenu').fadeOut(50,function(){
+			$('.cmenu').fadeOut(50);
+			$(menu).fadeOut(50,function(){
 				setMenuXY(currentLatLng);
-				$('.mapmenu').fadeIn(50).find('.addArea').attr('onclick','addNewMarker' + currentLatLng + ';');
+				$(menu).fadeIn(50).find('.addArea').attr('onclick','addNewMarker' + currentLatLng + ';');
 			});
 		}
 		function hideContextMenu() {
-			$('.cmenu').fadeOut(200);
+			$('.cmenu').fadeOut(50);
 			$("#LocationsJSON").fadeOut(500);
 		}
 		function addNewMarker(Lat,Lng) {
@@ -89,7 +101,6 @@
 			hideContextMenu();
 		}
 		function copyMarkerLocations(){
-			hideContextMenu();
 			$("#LocationsJSON,#LocationsJSON_hidden").text(JSON.stringify(locations, null, "\t"))
 			try{
 				$("#LocationsJSON_hidden").select();
@@ -124,65 +135,68 @@
 		
 		var PokeWatchApp = angular.module('PokeWatchApp', []);
 		PokeWatchApp.controller('PokeWatchController', function PokeWatchController($scope) {
-			$scope.areas = JSON.parse(localStorage.getItem("areas")) || [{name:"Springfield",prefix:"around",suffix:"north"}];
-			
+			$scope.areas = JSON.parse(localStorage.getItem("areas")) || [{name:"Springfield",prefix:"around",suffix:"north",locations:[]}];
 			$scope.AddArea = function () {
 				$scope.areas.push({
 					name: "New Location",
 					prefix: "",
-					suffix: ""
+					suffix: "",
+					locations:[]
 				});
 			};
-			$scope.RemoveArea = function(el) {
+			$scope.RemoveArea = function() {
 				$scope.areas.splice(this.$index, 1);
 			}
-		});
-		var rectangle;
-		function makeSquare(){
-			rectangle = new google.maps.Rectangle({
-				strokeColor: '#FF0000',
-				strokeOpacity: 0.8,
-				strokeWeight: 2,
-				fillColor: '#FF0000',
-				fillOpacity: 0.35,
-				map: map,
-				editable:true,
-				draggable:true,
-				bounds: {
-					north: -36.78546986889685,	//f.b
-					south: -36.78839127856238,	//f.f
-					east: 174.76308345794678,	//b.f
-					west: 174.75763320922852	//b.b
+			
+			$scope.makeCircle = function(){
+				var bounds = rectangle.getBounds();
+				var i=0;
+				for (nextS = bounds.f.b; (nextS + (180/Math.PI)*(110/6378137)) > bounds.f.f; nextS -= (180/Math.PI)*(110/6378137)){
+					nextEE = bounds.b.b;
+					if (++i % 2 == 0){
+						nextEE += (180/Math.PI)*(70/6378137)
+					}
+					for (nextE = nextEE; (nextE - (180/Math.PI)*(70/6378137)) < bounds.b.f; nextE += (180/Math.PI)*(140/6378137)){
+						var circle = new google.maps.Circle({
+							strokeColor: '#27ae60',
+							strokeOpacity: 0.8,
+							strokeWeight: 2,
+							fillColor: '#2ecc71',
+							fillOpacity: 0.35,
+							map: map,
+							center: {"lat":nextS,"lng":nextE},
+							radius: 70,
+							draggable:true,
+							clickable:true
+						});
+						google.maps.event.addListener(circle, "rightclick",function(event){showMapMenu(event.latLng,'.markermenu');});
+						$scope.areas[this.$index].locations.push(circle);
+					}
 				}
-			});
-		}
-		function makeCircle(obj){
-			var bounds = rectangle.getBounds();
-			var i=0;
-			for (nextS = bounds.f.b; (nextS + (180/Math.PI)*(110/6378137)) > bounds.f.f; nextS -= (180/Math.PI)*(110/6378137)){
-				nextEE = bounds.b.b;
-				if (++i % 2 == 0){
-					nextEE += (180/Math.PI)*(70/6378137)
-				}
-				for (nextE = nextEE; (nextE - (180/Math.PI)*(70/6378137)) < bounds.b.f; nextE += (180/Math.PI)*(140/6378137)){
-					var circle = new google.maps.Circle({
-						strokeColor: '#27ae60',
-						strokeOpacity: 0.8,
-						strokeWeight: 2,
-						fillColor: '#2ecc71',
-						fillOpacity: 0.35,
-						map: map,
-						center: {"lat":nextS,"lng":nextE},
-						radius: 70,
-						draggable:true,
-						clickable:true
-					});
-					google.maps.event.addListener(circle, "rightclick",function(event){showMapMenu(event.latLng);});
-					obj.push(circle);
-				}
+				rectangle.setMap(null);
 			}
-			rectangle.setMap(null);
-		}
+			
+			var rectangle;
+			$scope.makeSquare = function(){
+				rectangle = new google.maps.Rectangle({
+					strokeColor: '#FF0000',
+					strokeOpacity: 0.8,
+					strokeWeight: 2,
+					fillColor: '#FF0000',
+					fillOpacity: 0.35,
+					map: map,
+					editable:true,
+					draggable:true,
+					bounds: {
+						north: -36.78546986889685,	//f.b
+						south: -36.78839127856238,	//f.f
+						east: 174.76308345794678,	//b.f
+						west: 174.75763320922852	//b.b
+					}
+				});
+				google.maps.event.addListener(rectangle, "rightclick",function(event){showMapMenu(event.latLng,'.squaremenu');});
+			}
+		});
 		</script>
 		<style type="text/css">
 		body{
@@ -386,7 +400,7 @@
 					</div>
 				</li>
 				<li>
-					<div class="collapsible-header"><i class="material-icons">place</i>Areas</div>
+					<div class="collapsible-header"><i class="material-icons">place</i>Areas | {{ ((area[0].locations*5).toString().toHHMMSS()) }}</div>
 					<div class="collapsible-body">
 						<ul class="collapsible" data-collapsible="accordion">
 							<li ng-repeat="area in areas">
@@ -421,11 +435,21 @@
 		</div>
 		<div class="formDiv" id="map_canvas"></div>
 		<div class="mapmenu cmenu">
-			<div class="item addArea" ng-repeat="area in areas" onclick="addNewMarker(40.782410,-73.965849);">
+			<div class="item addArea" ng-repeat="area in areas" onclick="hideContextMenu();addNewMarker(40.782410,-73.965849);">
 				<div class="label">+ {{area.name}} marker</div>
 			</div>
-			<div class="item" onclick="copyMarkerLocations()">
-				<div class="label">Copy Marker Locations</div>
+			<div class="item" onclick="hideContextMenu();" data-ng-click="makeSquare();">
+				<div class="label">Mass Marker Area</div>
+			</div>
+		</div>
+		<div class="markermenu cmenu">
+			<div class="item" onclick="hideContextMenu();deleteMarker();">
+				<div class="label">Delete Marker</div>
+			</div>
+		</div>
+		<div class="squaremenu cmenu">
+			<div class="item" ng-repeat="area in areas" onclick="hideContextMenu();" data-ng-click="makeCircle();">
+				<div class="label">Create Markers {{area.name}}</div>
 			</div>
 		</div>
 		<textarea id="LocationsJSON" ></textarea>

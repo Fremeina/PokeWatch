@@ -25,7 +25,7 @@
 					initialize(Lat,Lng);
 				},function(error){
 					initialize(40.782410,-73.965849);
-					swal({title: "Warning!",text: "Could not determine your location,<br/>Please set your location on <strong>Line 114</strong> of this file<br/><pre>initialize(40.782410,-73.965849);</pre><br/>And then delete <strong>Line 115</strong>",type:"warning",html: true});
+					swal({title: "Warning!",text: "Could not determine your location,<br/>Please set your location on <strong>Line 27</strong> of this file<br/><pre>initialize(40.782410,-73.965849);</pre><br/>And then delete <strong>Line 28</strong>",type:"warning",html: true});
 				});
 				$('textarea').trigger('autoresize');
 			});
@@ -179,12 +179,12 @@
 				var Index = this.$index;
 				var bounds = $scope.rectangle.getBounds();
 				var i=0;
-				for (nextS = bounds.f.b; (nextS + (180/Math.PI)*(110/6378137)) > bounds.f.f; nextS -= (180/Math.PI)*(110/6378137)){
+				for (nextS = bounds.f.b; (nextS + (180/Math.PI)*(105/6378137)) > bounds.f.f; nextS -= (180/Math.PI)*(105/6378137)){
 					nextEE = bounds.b.b;
 					if (++i % 2 == 0){
-						nextEE += (180/Math.PI)*(70/6378137)
+						nextEE += (180/Math.PI)*(80/6378137)
 					}
-					for (nextE = nextEE; (nextE - (180/Math.PI)*(70/6378137)) < bounds.b.f; nextE += (180/Math.PI)*(140/6378137)){
+					for (nextE = nextEE; (nextE - (180/Math.PI)*(80/6378137)) < bounds.b.f; nextE += (180/Math.PI)*(160/6378137)){
 						$scope.addNewMarker(nextS,nextE,Index);
 					}
 				}

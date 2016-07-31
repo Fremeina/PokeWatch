@@ -13,113 +13,138 @@
 		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
 		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/materialize/0.97.7/js/materialize.min.js"></script>
 		<script type="text/javascript">
-		var map;
-		var locations=[];
-		String.prototype.toHHMMSS = function () {
-			var sec_num = parseInt(this, 10); // don't forget the second param
-			var hours   = Math.floor(sec_num / 3600);
-			var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
-			var seconds = sec_num - (hours * 3600) - (minutes * 60);
-
-			if (hours   < 10) {hours   = "0"+hours;}
-			if (minutes < 10) {minutes = "0"+minutes;}
-			if (seconds < 10) {seconds = "0"+seconds;}
-			return hours+':'+minutes+':'+seconds;
-		}
-		function initialize(Lat,Lng) {
-			var latlng = new google.maps.LatLng(Lat,Lng);
-			var myOptions = {
-			  zoom: 15,
-			  center: latlng,
-			  mapTypeId: google.maps.MapTypeId.ROADMAP
-			};
-			map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
-			google.maps.event.addListener(map,"rightclick",function(event){showMapMenu(event.latLng,'.mapmenu');});
-			google.maps.event.addListener(map,"click",function(event){hideContextMenu();});
-		}
-		function getCanvasXY(currentLatLng){
-			var scale = Math.pow(2, map.getZoom());
-			var nw = new google.maps.LatLng(
-				map.getBounds().getNorthEast().lat(),
-				map.getBounds().getSouthWest().lng()
-			);
-			var worldCoordinateNW = map.getProjection().fromLatLngToPoint(nw);
-			var worldCoordinate = map.getProjection().fromLatLngToPoint(currentLatLng);
-			var currentLatLngOffset = new google.maps.Point(
-				Math.floor((worldCoordinate.x - worldCoordinateNW.x) * scale),
-				Math.floor((worldCoordinate.y - worldCoordinateNW.y) * scale)
-			);
-			return currentLatLngOffset;
-		}
-		function setMenuXY(currentLatLng){
-			var mapWidth = $('#map_canvas').width();
-			var mapHeight = $('#map_canvas').height();
-			var menuWidth = $('.cmenu').width();
-			var menuHeight = $('.cmenu').height();
-			var clickedPosition = getCanvasXY(currentLatLng);
-			var x = clickedPosition.x ;
-			var y = clickedPosition.y ;
-
-			if((mapWidth - x ) < menuWidth)
-				 x = x - menuWidth;
-			if((mapHeight - y ) < menuHeight)
-				y = y - menuHeight;
-
-			$('.cmenu').css('left',x);
-			$('.cmenu').css('top',y);
-		};
-		function showMapMenu(currentLatLng,menu) {
-			var projection;
-			var contextmenuDir;
-			projection = map.getProjection() ;
-			$('.cmenu').fadeOut(50);
-			$(menu).fadeOut(50,function(){
-				setMenuXY(currentLatLng);
-				$(menu).fadeIn(50).find('.addArea').attr('onclick','addNewMarker' + currentLatLng + ';');
-			});
-		}
-		function hideContextMenu() {
-			$('.cmenu').fadeOut(50);
-			$("#LocationsJSON").fadeOut(500);
-		}
-		function copyMarkerLocations(){
-			$("#LocationsJSON,#LocationsJSON_hidden").text(JSON.stringify(locations, null, "\t"))
-			try{
-				$("#LocationsJSON_hidden").select();
-				var successful = document.execCommand('copy');
-				if (!successful) {
-					throw 'copy unsuccessful';
-				}
-				swal({
-					title: "Success!",
-					text: "Copied Locations",
-					type:"success",
-					timer: 2000,
-					showConfirmButton: false
-				});
-			}catch(err){
-				console.log(err);
-				$("#LocationsJSON").fadeIn(500)
-				$("#LocationsJSON").select();
-			}
-		}
-		$(document).ready(function(){
-			navigator.geolocation.getCurrentPosition(function(location) {
-				console.log(location);
-				Lat = location.coords.latitude;
-				Lng = location.coords.longitude;
-				initialize(Lat,Lng);
-			},function(error){
-				initialize(40.782410,-73.965849);
-				swal({title: "Warning!",text: "Could not determine your location,<br/>Please set your location on <strong>Line 114</strong> of this file<br/><pre>initialize(40.782410,-73.965849);</pre><br/>And then delete <strong>Line 115</strong>",type:"warning",html: true});
-			});
-		});
 		
 		var PokeWatchApp = angular.module('PokeWatchApp', []);
-		PokeWatchApp.controller('PokeWatchController', function PokeWatchController($scope) {
-			$scope.areas = JSON.parse(localStorage.getItem("areas")) || [{name:"Springfield",prefix:"around",suffix:"north",locations:[]}];
+		PokeWatchApp.controller('PokeWatchController', function PokeWatchController($scope,$http) {
+			
+			$(document).ready(function(){
+				navigator.geolocation.getCurrentPosition(function(location) {
+					console.log(location);
+					Lat = location.coords.latitude;
+					Lng = location.coords.longitude;
+					initialize(Lat,Lng);
+				},function(error){
+					initialize(40.782410,-73.965849);
+					swal({title: "Warning!",text: "Could not determine your location,<br/>Please set your location on <strong>Line 114</strong> of this file<br/><pre>initialize(40.782410,-73.965849);</pre><br/>And then delete <strong>Line 115</strong>",type:"warning",html: true});
+				});
+			});
+			
+			var map;
+			var myLatLng;
+			$scope.configuration = {};
+			$http.get("Configuration.json").then(function(response) {
+				$scope.configuration = response.data;
+				$.each($scope.configuration.Regions,function(i,v){
+					v.Markers = [];
+				});
+			});
+			
+			String.prototype.toHHMMSS = function () {
+				var sec_num = parseInt(this, 10); // don't forget the second param
+				var hours   = Math.floor(sec_num / 3600);
+				var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
+				var seconds = sec_num - (hours * 3600) - (minutes * 60);
+
+				if (hours   < 10) {hours   = "0"+hours;}
+				if (minutes < 10) {minutes = "0"+minutes;}
+				if (seconds < 10) {seconds = "0"+seconds;}
+				return hours+':'+minutes+':'+seconds;
+			}
+			function initialize(Lat,Lng) {
+				var latlng = new google.maps.LatLng(Lat,Lng);
+				var myOptions = {
+				  zoom: 15,
+				  center: latlng,
+				  mapTypeId: google.maps.MapTypeId.ROADMAP
+				};
+				map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+				google.maps.event.addListener(map,"rightclick",function(event){$scope.showMapMenu(event.latLng,'.mapmenu');});
+				google.maps.event.addListener(map,"click",function(event){$scope.hideContextMenu();});
+			}
+			function getCanvasXY(currentLatLng){
+				var scale = Math.pow(2, map.getZoom());
+				var nw = new google.maps.LatLng(
+					map.getBounds().getNorthEast().lat(),
+					map.getBounds().getSouthWest().lng()
+				);
+				var worldCoordinateNW = map.getProjection().fromLatLngToPoint(nw);
+				var worldCoordinate = map.getProjection().fromLatLngToPoint(currentLatLng);
+				var currentLatLngOffset = new google.maps.Point(
+					Math.floor((worldCoordinate.x - worldCoordinateNW.x) * scale),
+					Math.floor((worldCoordinate.y - worldCoordinateNW.y) * scale)
+				);
+				return currentLatLngOffset;
+			}
+			function setMenuXY(currentLatLng){
+				var mapWidth = $('#map_canvas').width();
+				var mapHeight = $('#map_canvas').height();
+				var menuWidth = $('.cmenu').width();
+				var menuHeight = $('.cmenu').height();
+				var clickedPosition = getCanvasXY(currentLatLng);
+				var x = clickedPosition.x ;
+				var y = clickedPosition.y ;
+
+				if((mapWidth - x ) < menuWidth)
+					 x = x - menuWidth;
+				if((mapHeight - y ) < menuHeight)
+					y = y - menuHeight;
+
+				$('.cmenu').css('left',x);
+				$('.cmenu').css('top',y);
+			};
+			$scope.showMapMenu = function(currentLatLng,menu) {
+				myLatLng = currentLatLng;
+				$('.cmenu').fadeOut(50);
+				$(menu).fadeOut(50,function(){
+					setMenuXY(currentLatLng);
+					$(menu).fadeIn(50);
+				});
+			}
+			$scope.hideContextMenu = function() {
+				$('.cmenu').fadeOut(50);
+				$("#LocationsJSON").fadeOut(500);
+			}
+			function copyMarkerLocations(){
+				$("#LocationsJSON,#LocationsJSON_hidden").text(JSON.stringify(locations, null, "\t"))
+				try{
+					$("#LocationsJSON_hidden").select();
+					var successful = document.execCommand('copy');
+					if (!successful) {
+						throw 'copy unsuccessful';
+					}
+					swal({
+						title: "Success!",
+						text: "Copied Locations",
+						type:"success",
+						timer: 2000,
+						showConfirmButton: false
+					});
+				}catch(err){
+					console.log(err);
+					$("#LocationsJSON").fadeIn(500)
+					$("#LocationsJSON").select();
+				}
+			}
+			
+			$scope.save = function() {
+				$.each($scope.configuration.Regions,function(i,v){
+					$.each(v.Markers,function(n,mark){
+						v.Locations.push({
+							"Latitude": mark.center.lat(),
+							"Longitude": mark.center.lng()
+						});
+						mark.setMap(null);
+					});
+					v.Markers = null;
+				});
+				var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify($scope.configuration,null,"\t"));
+				var dlAnchorElem = document.getElementById('downloadAnchorElem');
+				dlAnchorElem.setAttribute("href",dataStr);
+				dlAnchorElem.setAttribute("download", "Configuration.json");
+				dlAnchorElem.click();
+			};
 			$scope.AddArea = function () {
-				$scope.areas.push({
+				$scope.configuration.Regions.push({
 					name: "New Location",
 					prefix: "",
 					suffix: "",
@@ -127,11 +152,19 @@
 				});
 			};
 			$scope.RemoveArea = function() {
-				$scope.areas.splice(this.$index, 1);
+				$scope.configuration.Regions.splice(this.$index, 1);
 			}
 			
 			//Add Single Marker
 			$scope.addNewMarker = function(Lat,Lng,area) {
+				Lat = Lat || 0;
+				Lng = Lng || 0;
+				area = area || this.$index;
+				if (Lat == 0 && Lng == 0){
+					LatLng = myLatLng;
+				}else{
+					LatLng = {"lat":Lat,"lng":Lng};
+				}
 				var circle = new google.maps.Circle({
 					strokeColor: '#27ae60',
 					strokeOpacity: 0.8,
@@ -139,12 +172,12 @@
 					fillColor: '#2ecc71',
 					fillOpacity: 0.35,
 					map: map,
-					center: {"lat":Lat,"lng":Lng},
+					center: LatLng,
 					radius: 70,
 					draggable:true
 				});
-				google.maps.event.addListener(circle, "rightclick",function(event){showMapMenu(event.latLng,'.markermenu');});
-				$scope.areas[area].locations.push(circle);
+				google.maps.event.addListener(circle, "rightclick",function(event){$scope.showMapMenu(event.latLng,'.markermenu');});
+				$scope.configuration.Regions[area].Markers.push(circle);
 			}
 			
 			//Transform Rectangle to Markers
@@ -161,6 +194,7 @@
 					}
 				}
 				rectangle.setMap(null);
+				var rectangle=null;
 			}
 			
 			//Create a Rectangle to mass mark area
@@ -182,7 +216,7 @@
 						west: 174.75763320922852	//b.b
 					}
 				});
-				google.maps.event.addListener(rectangle, "rightclick",function(event){showMapMenu(event.latLng,'.squaremenu');});
+				google.maps.event.addListener(rectangle, "rightclick",function(event){$scope.showMapMenu(event.latLng,'.squaremenu');});
 			}
 		});
 		</script>
@@ -341,6 +375,7 @@
 		</style>
 	</head>
 	<body ng-controller="PokeWatchController">
+		<a id="downloadAnchorElem" style="display:none"></a>
 		<input type="text" style="display:none">
 		<input type="password" style="display:none">
 		<div class="container" id="menu" style="max-height:100vh;overflow-y:auto;autoflow-x:hidden;">
@@ -349,20 +384,20 @@
 					<div class="collapsible-header"><i class="material-icons">supervisor_account</i>Pokemon GO Account</div>
 					<div class="collapsible-body">
 						<div class="input-field col s12">
-							<input autocomplete="off" placeholder="(optional)" id="ptc_username" type="text">
-							<label for="ptc_username">PTC Username</label>
+							<input autocomplete="off" placeholder="(optional)" id="PTCUsername" type="text" ng-model="configuration.PTCUsername">
+							<label for="PTCUsername">PTC Username</label>
 						</div>
 						<div class="input-field col s12">
-							<input autocomplete="off" placeholder="********" id="ptc_password" type="password">
-							<label for="ptc_password">PTC Password</label>
+							<input autocomplete="off" placeholder="********" id="PTCPassword" type="password" ng-model="configuration.PTCPassword">
+							<label for="PTCPassword">PTC Password</label>
 						</div>
 						<div class="input-field col s12">
-							<input autocomplete="off" placeholder="(optional)" id="google_username" type="text">
-							<label for="google_username">Google Account Username</label>
+							<input autocomplete="off" placeholder="(optional)" id="google_username" type="text" ng-model="configuration.GAUsername">
+							<label for="GAUsername">Google Account Username</label>
 						</div>
 						<div class="input-field col s12">
-							<input autocomplete="off" placeholder="********" id="ptc_username" type="password">
-							<label for="google_password">Google Account Password</label>
+							<input autocomplete="off" placeholder="********" id="ptc_username" type="password" ng-model="configuration.GAPassword">
+							<label for="GAUsername">Google Account Password</label>
 						</div>
 					</div>
 				</li>
@@ -370,42 +405,43 @@
 					<div class="collapsible-header"><i class="material-icons">settings</i>Twitter Account</div>
 					<div class="collapsible-body">
 						<div class="input-field col s12">
-							<input autocomplete="off" placeholder="required" id="google_username" type="text">
-							<label for="google_username">Twitter Consumer Token</label>
+							<input autocomplete="off" placeholder="required" id="TwitterConsumerToken" type="text" ng-model="configuration.TwitterConsumerToken">
+							<label for="TwitterConsumerToken">Twitter Consumer Token</label>
 						</div>
 						<div class="input-field col s12">
-							<input autocomplete="off" placeholder="required" id="google_username" type="text">
-							<label for="google_username">Twitter Consumer Secret</label>
+							<input autocomplete="off" placeholder="required" id="TwitterConsumerSecret" type="text" ng-model="configuration.TwitterConsumerSecret">
+							<label for="TwitterConsumerSecret">Twitter Consumer Secret</label>
 						</div>
 						<div class="input-field col s12">
-							<input autocomplete="off" placeholder="required" id="google_username" type="text">
-							<label for="google_username">Twitter Access Token</label>
+							<input autocomplete="off" placeholder="required" id="TwitterAccessToken" type="text" ng-model="configuration.TwitterAccessToken">
+							<label for="TwitterAccessToken">Twitter Access Token</label>
 						</div>
 						<div class="input-field col s12">
-							<input autocomplete="off" placeholder="required" id="google_username" type="text">
-							<label for="google_username">Twitter Access  Secret</label>
+							<input autocomplete="off" placeholder="required" id="TwitterAccessSecret" type="text" ng-model="configuration.TwitterAccessSecret">
+							<label for="TwitterAccessSecret">Twitter Access  Secret</label>
 						</div>
 					</div>
 				</li>
 				<li>
-					<div class="collapsible-header"><i class="material-icons">place</i>Areas | {{ ((areas[0].locations*5).toString().toHHMMSS()) }}</div>
+					<div class="collapsible-header"><i class="material-icons">place</i>Areas</div>
 					<div class="collapsible-body">
 						<ul class="collapsible" data-collapsible="accordion">
-							<li ng-repeat="area in areas">
-								<div class="collapsible-header"><i class="material-icons">grade</i>{{area.prefix}} {{area.name}} {{area.suffix}}</div>
+							<li ng-repeat="area in configuration.Regions">
+								<div class="collapsible-header truncate">{{area.Prefix}} {{area.Name}} {{area.Suffix}}</div>
 								<div class="collapsible-body">
 									<div class="input-field col s12">
-										<input autocomplete="off" placeholder=" - " id="google_username" type="text" value="{{area.prefix}}">
-										<label for="google_username">Prefix</label>
+										<input autocomplete="off" placeholder=" - " id="Prefix" type="text" ng-model="area.Prefix">
+										<label for="Prefix">Prefix</label>
 									</div>
 									<div class="input-field col s12">
-										<input autocomplete="off" placeholder=" - " id="google_username" type="text" value="{{area.name}}">
-										<label for="google_username">Name</label>
+										<input autocomplete="off" placeholder=" - " id="Prefix" type="text" ng-model="area.Name">
+										<label for="Prefix">Name</label>
 									</div>
 									<div class="input-field col s12">
-										<input autocomplete="off" placeholder=" - " id="google_username" type="text" value="{{area.suffix}}">
-										<label for="google_username">Suffix</label>
+										<input autocomplete="off" placeholder=" - " id="Prefix" type="text" ng-model="area.Suffix">
+										<label for="Prefix">Suffix</label>
 									</div>
+									<p>Total time to scan: {{ ((area.Locations.length*5).toString().toHHMMSS()) }}</p>
 									<a class="waves-effect waves-light btn red" data-ng-click="RemoveArea()">Remove</a>
 								</div>
 							</li>
@@ -419,14 +455,14 @@
 					</div>
 				</li>
 			</ul>
-			<a class="waves-effect waves-light btn green">Download Config</a>
+			<a class="waves-effect waves-light btn green" ng-click="save()">Download Config</a>
 		</div>
 		<div class="formDiv" id="map_canvas"></div>
 		<div class="mapmenu cmenu">
-			<div class="item addArea" ng-repeat="area in areas" onclick="hideContextMenu();addNewMarker(40.782410,-73.965849);">
-				<div class="label">+ {{area.name}} marker</div>
+			<div class="item addArea" ng-repeat="area in configuration.Regions" data-ng-click="hideContextMenu();addNewMarker();">
+				<div class="label">+ {{area.Name}} marker</div>
 			</div>
-			<div class="item" onclick="hideContextMenu();" data-ng-click="makeRectangle();">
+			<div class="item" data-ng-click="hideContextMenu();makeRectangle();">
 				<div class="label">Mass Marker Area</div>
 			</div>
 		</div>
@@ -436,8 +472,8 @@
 			</div>
 		</div>
 		<div class="squaremenu cmenu">
-			<div class="item" ng-repeat="area in areas" onclick="hideContextMenu();" data-ng-click="makeCircle();">
-				<div class="label">Create Markers {{area.name}}</div>
+			<div class="item" ng-repeat="area in configuration.Regions" data-ng-click="hideContextMenu();makeCircle();">
+				<div class="label">Create Markers {{area.Name}}</div>
 			</div>
 		</div>
 		<textarea id="LocationsJSON" ></textarea>

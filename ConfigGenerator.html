@@ -7,13 +7,12 @@
 		<link href="//fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
 		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/materialize/0.97.7/css/materialize.min.css">
-		<script type="text/javascript" src="//maps.google.com/maps/api/js?sensor=false&key=AIzaSyDH834DQFJeDEIH-UkjiMR0UkXyEps-nvQ"></script>
+		<script type="text/javascript" src="//maps.google.com/maps/api/js?sensor=false&key=AIzaSyB2uYz3zQoiQxmHp725lijgueScq_7M51c"></script>
 		<script type="text/javascript" src="//code.jquery.com/jquery-3.1.0.min.js"></script>
 		<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular.min.js"></script>
 		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
 		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/materialize/0.97.7/js/materialize.min.js"></script>
 		<script type="text/javascript">
-		
 		var PokeWatchApp = angular.module('PokeWatchApp', []);
 		PokeWatchApp.controller('PokeWatchController', function PokeWatchController($scope,$http) {
 			
@@ -31,12 +30,14 @@
 			
 			var map;
 			var myLatLng;
-			$scope.configuration = {};
+			$scope.color = ["#2ecc71","#3498db","#9b59b6","#e74c3c","#1abc9c","#e67e22","#f1c40f"];
 			$http.get("Configuration.json").then(function(response) {
 				$scope.configuration = response.data;
 				$.each($scope.configuration.Regions,function(i,v){
 					v.Markers = [];
+					delete v["$$hashKey"];
 				});
+				console.log($scope.configuration);
 			});
 			
 			String.prototype.toHHMMSS = function () {
@@ -104,27 +105,6 @@
 				$('.cmenu').fadeOut(50);
 				$("#LocationsJSON").fadeOut(500);
 			}
-			function copyMarkerLocations(){
-				$("#LocationsJSON,#LocationsJSON_hidden").text(JSON.stringify(locations, null, "\t"))
-				try{
-					$("#LocationsJSON_hidden").select();
-					var successful = document.execCommand('copy');
-					if (!successful) {
-						throw 'copy unsuccessful';
-					}
-					swal({
-						title: "Success!",
-						text: "Copied Locations",
-						type:"success",
-						timer: 2000,
-						showConfirmButton: false
-					});
-				}catch(err){
-					console.log(err);
-					$("#LocationsJSON").fadeIn(500)
-					$("#LocationsJSON").select();
-				}
-			}
 			
 			$scope.save = function() {
 				$.each($scope.configuration.Regions,function(i,v){
@@ -135,7 +115,8 @@
 						});
 						mark.setMap(null);
 					});
-					v.Markers = null;
+					delete v.Markers;
+					delete v["$$hashKey"];
 				});
 				var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify($scope.configuration,null,"\t"));
 				var dlAnchorElem = document.getElementById('downloadAnchorElem');
@@ -145,10 +126,11 @@
 			};
 			$scope.AddArea = function () {
 				$scope.configuration.Regions.push({
-					name: "New Location",
-					prefix: "",
-					suffix: "",
-					locations:[]
+					Name: "New Location",
+					Prefix: "",
+					Suffix: "",
+					Locations:[],
+					Markers:[]
 				});
 			};
 			$scope.RemoveArea = function() {
@@ -159,17 +141,17 @@
 			$scope.addNewMarker = function(Lat,Lng,area) {
 				Lat = Lat || 0;
 				Lng = Lng || 0;
-				area = area || this.$index;
+				area = area || this.$index || 0;
 				if (Lat == 0 && Lng == 0){
 					LatLng = myLatLng;
 				}else{
 					LatLng = {"lat":Lat,"lng":Lng};
 				}
 				var circle = new google.maps.Circle({
-					strokeColor: '#27ae60',
+					strokeColor: $scope.color[area],
 					strokeOpacity: 0.8,
 					strokeWeight: 2,
-					fillColor: '#2ecc71',
+					fillColor: $scope.color[area],
 					fillOpacity: 0.35,
 					map: map,
 					center: LatLng,
@@ -179,10 +161,13 @@
 				google.maps.event.addListener(circle, "rightclick",function(event){$scope.showMapMenu(event.latLng,'.markermenu');});
 				$scope.configuration.Regions[area].Markers.push(circle);
 			}
-			
+			$scope.deleteMarker = function(Lat,Lng,area) {
+				
+			}
 			//Transform Rectangle to Markers
 			$scope.makeCircle = function(){
-				var bounds = rectangle.getBounds();
+				var Index = this.$index;
+				var bounds = $scope.rectangle.getBounds();
 				var i=0;
 				for (nextS = bounds.f.b; (nextS + (180/Math.PI)*(110/6378137)) > bounds.f.f; nextS -= (180/Math.PI)*(110/6378137)){
 					nextEE = bounds.b.b;
@@ -190,33 +175,32 @@
 						nextEE += (180/Math.PI)*(70/6378137)
 					}
 					for (nextE = nextEE; (nextE - (180/Math.PI)*(70/6378137)) < bounds.b.f; nextE += (180/Math.PI)*(140/6378137)){
-						$scope.addNewMarker(nextS,nextE,this.$index);
+						$scope.addNewMarker(nextS,nextE,Index);
 					}
 				}
-				rectangle.setMap(null);
-				var rectangle=null;
+				$scope.rectangle.setMap(null);
+				$scope.rectangle=null;
 			}
 			
 			//Create a Rectangle to mass mark area
-			var rectangle;
 			$scope.makeRectangle = function(){
-				rectangle = new google.maps.Rectangle({
-					strokeColor: '#FF0000',
+				$scope.rectangle = new google.maps.Rectangle({
+					strokeColor: '#000000',
 					strokeOpacity: 0.8,
 					strokeWeight: 2,
-					fillColor: '#FF0000',
+					fillColor: '#000000',
 					fillOpacity: 0.35,
 					map: map,
 					editable:true,
 					draggable:true,
 					bounds: {
-						north: -36.78546986889685,	//f.b
-						south: -36.78839127856238,	//f.f
-						east: 174.76308345794678,	//b.f
-						west: 174.75763320922852	//b.b
+						north: myLatLng.lat(),	//f.b
+						south: myLatLng.lat() - (180/Math.PI)*(200/6378137),	//f.f
+						east: myLatLng.lng() + (180/Math.PI)*(300/6378137),	//b.f
+						west: myLatLng.lng()	//b.b
 					}
 				});
-				google.maps.event.addListener(rectangle, "rightclick",function(event){$scope.showMapMenu(event.latLng,'.squaremenu');});
+				google.maps.event.addListener($scope.rectangle, "rightclick",function(event){$scope.showMapMenu(event.latLng,'.squaremenu');});
 			}
 		});
 		</script>
@@ -233,7 +217,7 @@
 			top: 10px;
 			z-index: 5;
 			height: auto;
-			width: 300px;
+			width: 350px;
 		}
 		#map_canvas{
 			width: 100vw; 
@@ -320,19 +304,22 @@
 			color: #2c3e50;
 		}
 		.input-field input[type=text]:focus + label,
-		.input-field input[type=password]:focus + label {
+		.input-field input[type=password]:focus + label,
+		.input-field textarea:focus + label	{
 			color: #2c3e50;
 		}
 		.input-field input[type=text]:focus,
-		.input-field input[type=password]:focus {
+		.input-field input[type=password]:focus,
+		.input-field.col.s12 textarea:focus	{
 			border-bottom: 1px solid #2c3e50;
 			box-shadow: 0 1px 0 0 #2c3e50;
 		}
-		.input-field .prefix.active {
-			color: #2c3e50;
+		.input-field label.active {
+			color: #2c3e50 !important;
 		}
 		.input-field input[type=text],
-		.input-field input[type=password] {
+		.input-field input[type=password],
+		.input-field textarea {
 			padding-left:10px;
 		}
 		.btn {
@@ -385,19 +372,19 @@
 					<div class="collapsible-body">
 						<div class="input-field col s12">
 							<input autocomplete="off" placeholder="(optional)" id="PTCUsername" type="text" ng-model="configuration.PTCUsername">
-							<label for="PTCUsername">PTC Username</label>
+							<label for="PTCUsername" class="active">PTC Username</label>
 						</div>
 						<div class="input-field col s12">
 							<input autocomplete="off" placeholder="********" id="PTCPassword" type="password" ng-model="configuration.PTCPassword">
-							<label for="PTCPassword">PTC Password</label>
+							<label for="PTCPassword" class="active">PTC Password</label>
 						</div>
 						<div class="input-field col s12">
 							<input autocomplete="off" placeholder="(optional)" id="google_username" type="text" ng-model="configuration.GAUsername">
-							<label for="GAUsername">Google Account Username</label>
+							<label for="GAUsername" class="active">Google Account Username</label>
 						</div>
 						<div class="input-field col s12">
 							<input autocomplete="off" placeholder="********" id="ptc_username" type="password" ng-model="configuration.GAPassword">
-							<label for="GAUsername">Google Account Password</label>
+							<label for="GAUsername" class="active">Google Account Password</label>
 						</div>
 					</div>
 				</li>
@@ -406,19 +393,19 @@
 					<div class="collapsible-body">
 						<div class="input-field col s12">
 							<input autocomplete="off" placeholder="required" id="TwitterConsumerToken" type="text" ng-model="configuration.TwitterConsumerToken">
-							<label for="TwitterConsumerToken">Twitter Consumer Token</label>
+							<label for="TwitterConsumerToken" class="active">Twitter Consumer Token</label>
 						</div>
 						<div class="input-field col s12">
 							<input autocomplete="off" placeholder="required" id="TwitterConsumerSecret" type="text" ng-model="configuration.TwitterConsumerSecret">
-							<label for="TwitterConsumerSecret">Twitter Consumer Secret</label>
+							<label for="TwitterConsumerSecret" class="active">Twitter Consumer Secret</label>
 						</div>
 						<div class="input-field col s12">
 							<input autocomplete="off" placeholder="required" id="TwitterAccessToken" type="text" ng-model="configuration.TwitterAccessToken">
-							<label for="TwitterAccessToken">Twitter Access Token</label>
+							<label for="TwitterAccessToken" class="active">Twitter Access Token</label>
 						</div>
 						<div class="input-field col s12">
 							<input autocomplete="off" placeholder="required" id="TwitterAccessSecret" type="text" ng-model="configuration.TwitterAccessSecret">
-							<label for="TwitterAccessSecret">Twitter Access  Secret</label>
+							<label for="TwitterAccessSecret" class="active">Twitter Access  Secret</label>
 						</div>
 					</div>
 				</li>
@@ -427,19 +414,19 @@
 					<div class="collapsible-body">
 						<ul class="collapsible" data-collapsible="accordion">
 							<li ng-repeat="area in configuration.Regions">
-								<div class="collapsible-header truncate">{{area.Prefix}} {{area.Name}} {{area.Suffix}}</div>
+								<div class="collapsible-header truncate" style="background-color:{{color[$index]}};">{{area.Prefix}} {{area.Name}} {{area.Suffix}}</div>
 								<div class="collapsible-body">
 									<div class="input-field col s12">
-										<input autocomplete="off" placeholder=" - " id="Prefix" type="text" ng-model="area.Prefix">
-										<label for="Prefix">Prefix</label>
+										<input autocomplete="off" ng-placeholder=" - " id="Prefix" type="text" ng-model="area.Prefix">
+										<label for="Prefix" class="active">Prefix</label>
 									</div>
 									<div class="input-field col s12">
-										<input autocomplete="off" placeholder=" - " id="Prefix" type="text" ng-model="area.Name">
-										<label for="Prefix">Name</label>
+										<input autocomplete="off" ng-placeholder=" - " id="Prefix" type="text" ng-model="area.Name">
+										<label for="Prefix" class="active">Name</label>
 									</div>
 									<div class="input-field col s12">
-										<input autocomplete="off" placeholder=" - " id="Prefix" type="text" ng-model="area.Suffix">
-										<label for="Prefix">Suffix</label>
+										<input autocomplete="off" ng-placeholder=" - " id="Prefix" type="text" ng-model="area.Suffix">
+										<label for="Prefix" class="active">Suffix</label>
 									</div>
 									<p>Total time to scan: {{ ((area.Locations.length*5).toString().toHHMMSS()) }}</p>
 									<a class="waves-effect waves-light btn red" data-ng-click="RemoveArea()">Remove</a>
@@ -452,6 +439,16 @@
 				<li>
 					<div class="collapsible-header"><i class="material-icons">chat</i>Tweets</div>
 					<div class="collapsible-body">
+						<div class="input-field col s12">
+							<textarea id="RegularTweet" class="materialize-textarea" ng-model="configuration.RegularTweet"></textarea>
+							<label for="RegularTweet" class="active">Regular Tweet</label>
+						</div>
+						<pre ng-bind="configuration.RegularTweet.replace('{0}','Pikachu').replace('{1}',configuration.Regions[0].Prefix).replace('{2}',configuration.Regions[0].Name).replace('{3}',configuration.Regions[0].Suffix).replace('{4}','5:00pm').replace('{5}','http://maps.google.com/?q=40.782410,-73.965849')"></pre>
+						<div class="input-field col s12">
+							<textarea id="PriorityTweet" class="materialize-textarea" ng-model="configuration.PriorityTweet"></textarea>
+							<label for="PriorityTweet" class="active">Priority Tweet</label>
+						</div>
+						<pre ng-bind="configuration.PriorityTweet.replace('{0}','Pikachu').replace('{1}',configuration.Regions[0].Prefix).replace('{2}',configuration.Regions[0].Name).replace('{3}',configuration.Regions[0].Suffix).replace('{4}','5:00pm').replace('{5}','http://maps.google.com/?q=40.782410,-73.965849')"></pre>
 					</div>
 				</li>
 			</ul>
@@ -467,7 +464,7 @@
 			</div>
 		</div>
 		<div class="markermenu cmenu">
-			<div class="item" onclick="hideContextMenu();deleteMarker();">
+			<div class="item" data-ng-click="hideContextMenu();deleteMarker();">
 				<div class="label">Delete Marker</div>
 			</div>
 		</div>
